@@ -137,8 +137,21 @@ async function addTeamMember(req, res) {
       return res.status(400).json({ error: 'User is already a team member' });
     }
 
+    // Get team info for notification
+    const team = await Team.findById(teamId);
+
     // Add user to team
     await Belong.addMember(userToAdd.user_id, teamId, role);
+    
+    // Send notification to the added user
+    const Notification = require('../models/notificationsModel');
+    await Notification.create(
+      'Added to Team',
+      `You have been added to the team: ${team.team_name}`,
+      null,
+      userToAdd.user_id
+    );
+
     res.status(200).json({ 
       message: `${userToAdd.first_name} ${userToAdd.last_name} added to team`,
       user: {
