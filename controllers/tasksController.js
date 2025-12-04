@@ -226,10 +226,16 @@ async function deleteTask(req, res) {
       return res.status(404).json({ error: 'Project not found' });
     }
 
-    // Check if user is a member of the team (any member can delete)
-    const userRole = await Belong.getRole(userId, project.team_id);
-    if (!userRole) {
-      return res.status(403).json({ error: 'You are not a member of this team' });
+    // Get the team to check ownership
+    const Team = require('../models/teamModel');
+    const team = await Team.findById(project.team_id);
+    if (!team) {
+      return res.status(404).json({ error: 'Team not found' });
+    }
+
+    // Only team owner can delete tasks
+    if (team.create_by !== userId) {
+      return res.status(403).json({ error: 'Only the team owner can delete tasks' });
     }
 
     // Delete the task
