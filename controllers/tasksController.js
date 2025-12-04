@@ -88,8 +88,25 @@ async function updateTaskStatus(req, res) {
     const taskId = req.params.taskId;
     if (status === undefined) return res.status(400).json({ error: 'Status is required' });
 
+    // Get task before update to check if status is changing
+    const task = await Task.findById(taskId);
+    if (!task) return res.status(404).json({ error: 'Task not found' });
+
     const [result] = await Task.update(taskId, { status });
     if (result.affectedRows === 0) return res.status(404).json({ error: 'Task not found' });
+
+    // If task is marked as completed (status = 2), notify assigned users
+    if (status === 2 && task.status !== 2) {
+      const assignees = await AssignedTo.getTaskAssignees(taskId);
+      for (const assignee of assignees) {
+        await Notification.create(
+          'Task Completed',
+          `The task "${task.title}" has been marked as completed`,
+          taskId,
+          assignee.user_id
+        );
+      }
+    }
 
     res.status(200).json({ message: 'Task status updated' });
   } catch (err) {
@@ -98,4 +115,36 @@ async function updateTaskStatus(req, res) {
   }
 }
 
-module.exports = { getTasksByProject, createTask, updateTaskStatus };
+async function deleteTask(req, res) {
+  try {
+    const taskId = req.params.taskId;
+    const userId = req.user.id;
+
+    // Get the task
+    const task = await Task.findById(taskId);
+    if (!task) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+
+    // Get the project to find team_id
+    const project = await Project.findById(task.project_id);
+    if (!project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    // Check if user is a member of the team (any member can delete)
+    const userRole = await Belong.getRole(userId, project.team_id);
+    if (!userRole) {
+      return res.status(403).json({ error: 'You are not a member of this team' });
+    }
+
+    // Delete the task
+    await Task.delete(taskId);
+    res.status(200).json({ message: 'Task deleted successfully' });
+  } catch (err) {
+    console.error('Error deleting task:', err);
+    res.status(500).json({ error: 'Server error deleting task' });
+  }
+}
+
+module.exports = { getTasksByProject, createTask, updateTaskStatus, deleteTask };
