@@ -143,14 +143,19 @@ async function addTeamMember(req, res) {
     // Add user to team
     await Belong.addMember(userToAdd.user_id, teamId, role);
     
-    // Send notification to the added user
-    const Notification = require('../models/notificationsModel');
-    await Notification.create(
-      'Added to Team',
-      `You have been added to the team: ${team.team_name}`,
-      null,
-      userToAdd.user_id
-    );
+    // Send notification to the added user (wrapped in try-catch to not break main operation)
+    try {
+      const Notification = require('../models/notificationsModel');
+      await Notification.create(
+        'Added to Team',
+        `You have been added to the team: ${team.team_name}`,
+        null,
+        userToAdd.user_id
+      );
+    } catch (notifError) {
+      console.error('Failed to send notification:', notifError.message);
+      // Continue - notification failure shouldn't prevent member from being added
+    }
 
     res.status(200).json({ 
       message: `${userToAdd.first_name} ${userToAdd.last_name} added to team`,
