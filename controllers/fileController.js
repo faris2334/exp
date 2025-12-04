@@ -1,8 +1,6 @@
 const TaskFile = require('../models/fileModel');
-const path = require('path');
-const fs = require('fs');
 
-// Upload a file
+// Upload a file - stores file data directly in database as BLOB
 exports.uploadFile = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -20,27 +18,29 @@ exports.uploadFile = async (req, res) => {
       task_id: parseInt(task_id),
       user_id: userId,
       file_name: req.file.originalname,
-      file_path: `/uploads/${req.file.filename}`,
-      file_size: req.file.size
+      file_data: req.file.buffer, // Binary data from memory storage
+      file_size: req.file.size,
+      mime_type: req.file.mimetype
     };
 
     const file = await TaskFile.create(fileData);
     
-    // Return file with user info
+    // Return file info (without binary data)
     res.status(201).json({
       file_id: file.file_id,
       task_id: file.task_id,
       user_id: file.user_id,
       file_name: file.file_name,
-      file_path: file.file_path,
       file_size: file.file_size,
+      mime_type: file.mime_type,
       uploaded_at: new Date().toISOString(),
       first_name: req.user.first_name,
       last_name: req.user.last_name
     });
   } catch (error) {
-    console.error('Error uploading file:', error);
-    res.status(500).json({ message: 'Failed to upload file' });
+    console.error('Error uploading file:', error.message);
+    console.error('Full error:', error);
+    res.status(500).json({ message: 'Failed to upload file', error: error.message });
   }
 };
 
@@ -74,13 +74,7 @@ exports.deleteFile = async (req, res) => {
       return res.status(403).json({ message: 'Not authorized to delete this file' });
     }
 
-    // Delete the physical file
-    const filePath = path.join(__dirname, '..', 'public', file.file_path);
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-    }
-
-    // Delete from database
+    // Delete from database (no physical file to delete anymore)
     await TaskFile.delete(fileId);
 
     res.json({ message: 'File deleted successfully' });
@@ -90,24 +84,28 @@ exports.deleteFile = async (req, res) => {
   }
 };
 
-// Download a file
+// Download a file - serves file data from database
 exports.downloadFile = async (req, res) => {
   try {
     const { fileId } = req.params;
     
-    const file = await TaskFile.findById(fileId);
+    const file = await TaskFile.findByIdWithData(fileId);
     
     if (!file) {
       return res.status(404).json({ message: 'File not found' });
     }
 
-    const filePath = path.join(__dirname, '..', 'public', file.file_path);
-    
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ message: 'File not found on server' });
+    if (!file.file_data) {
+      return res.status(404).json({ message: 'File data not found' });
     }
 
-    res.download(filePath, file.file_name);
+    // Set headers for file download
+    res.setHeader('Content-Type', file.mime_type || 'application/octet-stream');
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.file_name)}"`);
+    res.setHeader('Content-Length', file.file_data.length);
+    
+    // Send the binary data
+    res.send(file.file_data);
   } catch (error) {
     console.error('Error downloading file:', error);
     res.status(500).json({ message: 'Failed to download file' });
