@@ -36,7 +36,6 @@ async function deleteComment(req, res) {
     const commentId = req.params.commentId;
     const userId = req.user.id;
 
-
     const comment = await TaskComment.findById(commentId);
     if (!comment) return res.status(404).json({ error: "Comment not found" });
 
@@ -46,14 +45,28 @@ async function deleteComment(req, res) {
     const project = await Project.findById(task.project_id);
     if (!project) return res.status(404).json({ error: "Project not found" });
 
-
     const teamId = project.team_id;
-    const isOwner = comment.user_id === userId;
+    const isCommentOwner = parseInt(comment.user_id) === parseInt(userId);
     const role = await Belong.getRole(userId, teamId);
     const isAdmin = role === "admin";
+    
+    // Check if user is the team owner (create_by)
+    const Team = require('../models/teamModel');
+    const team = await Team.findById(teamId);
+    const isTeamOwner = team && parseInt(team.create_by) === parseInt(userId);
 
+    console.log('Delete comment check:', { 
+      userId, 
+      commentUserId: comment.user_id, 
+      teamCreateBy: team?.create_by, 
+      isCommentOwner, 
+      isAdmin, 
+      isTeamOwner,
+      role 
+    });
 
-    if (!isOwner && !isAdmin) {
+    // Allow deletion if: comment owner, admin, or team owner
+    if (!isCommentOwner && !isAdmin && !isTeamOwner) {
       return res.status(403).json({ error: "Not allowed to delete this comment" });
     }
 
