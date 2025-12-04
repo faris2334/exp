@@ -43,17 +43,15 @@ const upload = multer({
   }
 });
 
-// All routes require authentication
-router.use(protect);
 
 // Upload file
-router.post('/upload', upload.single('file'), fileController.uploadFile);
+router.post('/upload',protect, upload.single('file'), fileController.uploadFile);
 
 // Get files by task
-router.get('/task/:taskId', fileController.getFilesByTask);
+router.get('/task/:taskId', protect, fileController.getFilesByTask);
 
 // Delete file
-router.delete('/:fileId', fileController.deleteFile);
+router.delete('/:fileId', protect, fileController.deleteFile);
 
 // Download file
 router.get('/download/:fileId', fileController.downloadFile);
