@@ -12,6 +12,16 @@ const Belong = {
   },
   leaveTeam: async (user_id, team_id) => {
     return db.query('DELETE FROM belong WHERE user_id = ? AND team_id = ?', [user_id, team_id]);
+  },
+  getTeamMembers: async (team_id) => {
+    const [rows] = await db.query(`
+      SELECT u.user_id, u.first_name, u.last_name, u.email, b.role, b.join_at
+      FROM belong b
+      JOIN user u ON b.user_id = u.user_id
+      WHERE b.team_id = ?
+      ORDER BY b.join_at ASC
+    `, [team_id]);
+    return rows;
   }
 };
 module.exports = Belong;

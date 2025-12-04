@@ -6,6 +6,6 @@ const { protect } = require('../middleware/authMiddleware');
 router.use(protect);
 router.post('/comment/create/:taskId', addComment);
 router.get('/task/create/:taskId', getComments);
-router.delete('delete/:commentId', deleteComment);
+router.delete('/delete/:commentId', deleteComment);
 
 module.exports = router;

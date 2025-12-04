@@ -19,7 +19,7 @@ const TaskComment = {
     return rows;
   },
   findById: async (commentId) => {
-    const [rows] = await db.query(`SELECT * FROM task_comments WHERE id = ?`, [commentId]);
+    const [rows] = await db.query(`SELECT * FROM task_comment WHERE comment_id = ?`, [commentId]);
     return rows[0];
   },
   delete: async (comment_id) => {

@@ -12,6 +12,15 @@ const Task = {
     const [rows] = await db.query('SELECT * FROM task WHERE task_id = ?', [id]);
     return rows[0];
   },
+  findAllByProject: async (project_id) => {
+    const [rows] = await db.query(`
+      SELECT t.*, 
+        (SELECT COUNT(*) FROM task_comment tc WHERE tc.task_id = t.task_id) as comment_count
+      FROM task t 
+      WHERE t.project_id = ?`, 
+      [project_id]);
+    return rows;
+  },
   update: async (id, data) => {
       let query = 'UPDATE task SET ';
       const values = [];

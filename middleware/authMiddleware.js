@@ -14,8 +14,7 @@ const protect = async (req, res, next) => {
             token = req.headers.authorization.split(' ')[1];
 
             // 2. فك تشفير الـ Token والتحقق من صلاحيته
-            //  يجب تغيير المفتاح السري (YOUR_JWT_SECRET)
-            const decoded = jwt.verify(token, 'YOUR_JWT_SECRET'); 
+            const decoded = jwt.verify(token, process.env.JWT_SECRET); 
 
             // 3. البحث عن المستخدم وإضافته لـ req
             // نفترض أن الـ Token يحتوي على id المستخدم

@@ -1,4 +1,5 @@
 const User = require('../models/userModel');
+const bcrypt = require('bcrypt');
 
 async function getUser(req, res) {
   try {
@@ -34,4 +35,32 @@ async function updateName(req, res) {
   }
 }
 
-module.exports = { getUser, updateName };
+async function setPassword(req, res) {
+  try {
+    const userIdToUpdate = req.params.id;  
+    const currentUserId = req.user.id;    
+    
+    if (String(userIdToUpdate) !== String(currentUserId)) {
+      return res.status(403).json({ error: 'Forbidden: You can only update your own password' });
+    }
+    
+    const { password } = req.body;
+    if (!password || password.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    }
+    
+    // Hash the password
+    const hashedPassword = await bcrypt.hash(password, 10);
+    
+    const [result] = await User.update(userIdToUpdate, { password: hashedPassword });
+
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'User not found' });
+
+    res.status(200).json({ message: 'Password set successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error setting password' });
+  }
+}
+
+module.exports = { getUser, updateName, setPassword };

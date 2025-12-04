@@ -9,6 +9,15 @@ const AssignedTo = {
   getAssignedUsers: async (task_id) => {
     const [rows] = await db.query('SELECT u.user_id, u.first_name, u.last_name FROM assigned_to at JOIN user u ON at.user_id = u.user_id WHERE at.task_id = ?', [task_id]);
     return rows;
+  },
+  getTaskAssignees: async (task_id) => {
+    const [rows] = await db.query(`
+      SELECT u.user_id, u.first_name, u.last_name, u.email
+      FROM assigned_to at 
+      JOIN user u ON at.user_id = u.user_id 
+      WHERE at.task_id = ?
+    `, [task_id]);
+    return rows;
   }
 };
 module.exports = AssignedTo;
