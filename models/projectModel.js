@@ -14,7 +14,7 @@ const Project = {
   },
   findByUrl: async (project_url) => {
     const [rows] = await db.query(`
-      SELECT p.*, t.team_name, t.team_url, u.first_name, u.last_name 
+      SELECT p.*, t.team_name, t.team_url, t.create_by as team_owner_id, u.first_name, u.last_name 
       FROM project p 
       JOIN team t ON p.team_id = t.team_id 
       JOIN user u ON p.create_by = u.user_id 

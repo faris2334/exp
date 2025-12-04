@@ -237,8 +237,7 @@ CREATE TABLE user (
     last_name VARCHAR(30),
     email VARCHAR(120) UNIQUE,
     password VARCHAR(60),
-    create_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    location VARCHAR(255) DEFAULT 'Unknown'
+    create_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Teams
@@ -279,7 +278,6 @@ CREATE TABLE task (
     description VARCHAR(500),
     status TINYINT,  -- 0=todo, 1=in-progress, 2=done
     project_id INT NOT NULL,
-    likes INT DEFAULT 0
 );
 
 -- Task Assignments

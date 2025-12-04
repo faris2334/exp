@@ -103,7 +103,53 @@ async function updateTeam(req, res) {
 async function deleteTeam(req, res) {
   try {
     const { teamId } = req.params;
+    const userId = req.user.id;
     
+    // Get team to verify it exists
+    const team = await Team.findById(teamId);
+    if (!team) {
+      return res.status(404).json({ error: 'Team not found' });
+    }
+    
+    // Only team creator (owner) can delete the team
+    if (team.create_by !== userId) {
+      return res.status(403).json({ error: 'Only the team owner can delete the team' });
+    }
+    
+    const db = require('../config/db');
+    
+    // Get all projects in this team
+    const [projects] = await db.query('SELECT project_id FROM project WHERE team_id = ?', [teamId]);
+    const projectIds = projects.map(p => p.project_id);
+    
+    if (projectIds.length > 0) {
+      // Get all tasks in these projects
+      const [tasks] = await db.query('SELECT task_id FROM task WHERE project_id IN (?)', [projectIds]);
+      const taskIds = tasks.map(t => t.task_id);
+      
+      if (taskIds.length > 0) {
+        // Delete notifications for these tasks
+        await db.query('DELETE FROM notifications WHERE task_id IN (?)', [taskIds]);
+        // Delete task files
+        await db.query('DELETE FROM task_files WHERE task_id IN (?)', [taskIds]);
+        // Delete comments
+        await db.query('DELETE FROM comment WHERE task_id IN (?)', [taskIds]);
+        // Delete assigned_to records
+        await db.query('DELETE FROM assigned_to WHERE task_id IN (?)', [taskIds]);
+        // Delete tasks
+        await db.query('DELETE FROM task WHERE project_id IN (?)', [projectIds]);
+      }
+      
+      // Delete participation records
+      await db.query('DELETE FROM participation WHERE project_id IN (?)', [projectIds]);
+      // Delete projects
+      await db.query('DELETE FROM project WHERE team_id = ?', [teamId]);
+    }
+    
+    // Delete belong records (team memberships)
+    await db.query('DELETE FROM belong WHERE team_id = ?', [teamId]);
+    
+    // Finally delete the team
     const [result] = await Team.delete(teamId);
     if (result.affectedRows === 0) {
       return res.status(404).json({ error: 'Team not found' });
@@ -111,7 +157,7 @@ async function deleteTeam(req, res) {
     
     res.status(200).json({ message: 'Team deleted successfully' });
   } catch (err) {
-    console.error(err);
+    console.error('Error deleting team:', err);
     res.status(500).json({ error: 'Server error deleting team' });
   }
 }
@@ -137,8 +183,26 @@ async function addTeamMember(req, res) {
       return res.status(400).json({ error: 'User is already a team member' });
     }
 
+    // Get team info for notification
+    const team = await Team.findById(teamId);
+
     // Add user to team
     await Belong.addMember(userToAdd.user_id, teamId, role);
+    
+    // Send notification to the added user (wrapped in try-catch to not break main operation)
+    try {
+      const Notification = require('../models/notificationsModel');
+      await Notification.create(
+        'Added to Team',
+        `You have been added to the team: ${team.team_name}`,
+        null,
+        userToAdd.user_id
+      );
+    } catch (notifError) {
+      console.error('Failed to send notification:', notifError.message);
+      // Continue - notification failure shouldn't prevent member from being added
+    }
+
     res.status(200).json({ 
       message: `${userToAdd.first_name} ${userToAdd.last_name} added to team`,
       user: {
