@@ -409,4 +409,40 @@ async function getTeamReport(req, res) {
   }
 }
 
-module.exports = { getMyTeams, getTeamByUrl, createTeam, updateTeam, deleteTeam, addTeamMember, removeTeamMember, getTeamReport };
+async function leaveTeam(req, res) {
+  try {
+    const teamId = req.params.teamId;
+    const userId = req.user.id;
+
+    // Get the team to check if user is the owner
+    const team = await Team.findById(teamId);
+    if (!team) {
+      return res.status(404).json({ error: 'Team not found' });
+    }
+
+    // Team owner cannot leave their own team (they must delete it or transfer ownership)
+    if (team.create_by === userId) {
+      return res.status(403).json({ error: 'Team owner cannot leave the team. Delete the team or transfer ownership first.' });
+    }
+
+    // Check if user is a member
+    const userRole = await Belong.getRole(userId, teamId);
+    if (!userRole) {
+      return res.status(400).json({ error: 'You are not a member of this team' });
+    }
+
+    // Remove user from team
+    const [result] = await Belong.removeMember(userId, teamId);
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Failed to leave team' });
+    }
+
+    res.status(200).json({ message: 'You have left the team successfully' });
+  } catch (err) {
+    console.error('Error leaving team:', err);
+    res.status(500).json({ error: 'Server error leaving team' });
+  }
+}
+
+module.exports = { getMyTeams, getTeamByUrl, createTeam, updateTeam, deleteTeam, addTeamMember, removeTeamMember, getTeamReport, leaveTeam };
