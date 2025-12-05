@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getMyTeams, getTeamByUrl, createTeam, updateTeam, deleteTeam, addTeamMember, removeTeamMember, getTeamReport } = require('../controllers/teamsController');
-const { leaveTeam } = require('../models/belongModel');
+const { getMyTeams, getTeamByUrl, createTeam, updateTeam, deleteTeam, addTeamMember, removeTeamMember, getTeamReport, leaveTeam } = require('../controllers/teamsController');
 const { protect } = require('../middleware/authMiddleware');
 const { checkTeamRole } = require('../middleware/roleMiddleware');
 
@@ -15,6 +14,6 @@ router.put('/:teamId', checkTeamRole('admin'), updateTeam);  // Update team
 router.delete('/:teamId', checkTeamRole('admin'), deleteTeam);  // Delete team
 router.post('/:teamId/members', checkTeamRole('admin'), addTeamMember);
 router.delete('/:teamId/members/:userId', checkTeamRole('admin'), removeTeamMember);
-router.post('/:teamId/members/:userId', checkTeamRole('member'), leaveTeam);
+router.post('/:teamId/leave', leaveTeam);  // Any member can leave
 
 module.exports = router;
