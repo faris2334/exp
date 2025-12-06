@@ -23,7 +23,8 @@ async function addComment(req, res) {
 async function getComments(req, res) {
     try {
         const task_id = req.params.taskId;
-        const comments = await TaskComment.findAllByTask(task_id);
+        const user_id = req.user.id;
+        const comments = await TaskComment.findAllByTask(task_id, user_id);
         res.status(200).json(comments);
     } catch (err) {
         console.error(err);
@@ -79,4 +80,50 @@ async function deleteComment(req, res) {
   }
 }
 
-module.exports = { addComment, getComments, deleteComment };
+// Toggle like on a comment (like if not liked, unlike if already liked)
+async function toggleLike(req, res) {
+  try {
+    const commentId = req.params.commentId;
+    const userId = req.user.id;
+
+    console.log('Toggle like called:', { commentId, userId });
+
+    // Check if comment exists
+    const comment = await TaskComment.findById(commentId);
+    console.log('Comment found:', comment);
+    
+    if (!comment) {
+      return res.status(404).json({ error: "Comment not found" });
+    }
+
+    // Check if user already liked this comment
+    const hasLiked = await TaskComment.hasUserLiked(commentId, userId);
+    console.log('Has user liked:', hasLiked);
+
+    if (hasLiked) {
+      // Remove like
+      console.log('Removing like...');
+      await TaskComment.removeLike(commentId, userId);
+    } else {
+      // Add like
+      console.log('Adding like...');
+      await TaskComment.addLike(commentId, userId);
+    }
+
+    // Get updated likes count
+    const likesCount = await TaskComment.getLikesCount(commentId);
+    console.log('Updated likes count:', likesCount);
+
+    res.json({
+      message: hasLiked ? "Like removed" : "Like added",
+      liked: !hasLiked,
+      likes: likesCount
+    });
+
+  } catch (err) {
+    console.error('Toggle like error:', err);
+    res.status(500).json({ error: "Server error toggling like" });
+  }
+}
+
+module.exports = { addComment, getComments, deleteComment, toggleLike };
